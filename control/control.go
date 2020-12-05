@@ -30,6 +30,11 @@ type Result struct {
 	Error  Error
 }
 
+type Notification struct {
+	Method string
+	Params map[string]string
+}
+
 func UnmarshalBulb(resp *http.Header) (bulb *Bulb, err error) {
 	jsonData, err := json.Marshal(resp)
 	if err = json.Unmarshal(jsonData, &bulb); err != nil {
@@ -59,15 +64,14 @@ func (b *Bulb) Toggle(id int) (err error) {
 	return
 }
 
-func (b *Bulb) ScanEvents() (res Result, err error) {
+func (b *Bulb) ScanEvents() (event []byte, err error) {
 	buffer := make([]byte, 1000)
-	n, _ := b.channel.Read(buffer)
-	s := bufio.NewScanner(bytes.NewReader(buffer[:n]))
-	for s.Scan() {
-		err = json.Unmarshal(s.Bytes(), &res)
-		if err != nil {
-			return
-		}
+	n, err := b.channel.Read(buffer)
+	if err != nil {
+		return
 	}
+	s := bufio.NewScanner(bytes.NewReader(buffer[:n]))
+	s.Scan()
+	event = s.Bytes()
 	return
 }
