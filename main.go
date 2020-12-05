@@ -31,7 +31,9 @@ func main() {
 			if err != nil {
 				log.Error().Err(err)
 			}
-			log.Info().Msgf("Scan found a bulb: %+v", bulb)
+			if bulb != nil {
+				log.Info().Msgf("Scan found a bulb: %+v", bulb)
+			}
 		}
 	}()
 
@@ -44,8 +46,7 @@ func main() {
 	bulbs, err := discovery.WaitBulbs(outboundAddr)
 	for _, bulb := range bulbs {
 		log.Info().Msgf("Found a bulb on discovery request: %+v", bulb)
-		err := bulb.Connect()
-		if err != nil {
+		if err := bulb.Connect(); err != nil {
 			log.Fatal().Err(err)
 		}
 		go func() {
@@ -76,8 +77,6 @@ func main() {
 			}
 			time.Sleep(1000 * time.Millisecond)
 		}
-		if err := bulb.Disconnect(); err != nil {
-			log.Fatal().Err(err)
-		}
+		defer bulb.Disconnect()
 	}
 }
