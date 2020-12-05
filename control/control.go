@@ -19,7 +19,7 @@ type Bulb struct {
 	channel  net.Conn
 }
 
-type Error struct {
+type ResultError struct {
 	Code    int
 	Message string
 }
@@ -27,7 +27,7 @@ type Error struct {
 type Result struct {
 	ID     int
 	Result []string
-	Error  Error
+	Error  ResultError
 }
 
 type Notification struct {

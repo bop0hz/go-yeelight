@@ -74,7 +74,7 @@ func main() {
 			if err := bulb.Toggle(i); err != nil {
 				log.Fatal().Err(err)
 			}
-			time.Sleep(700 * time.Millisecond)
+			time.Sleep(1000 * time.Millisecond)
 		}
 		if err := bulb.Disconnect(); err != nil {
 			log.Fatal().Err(err)
