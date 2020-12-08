@@ -10,15 +10,6 @@ import (
 	"strings"
 )
 
-type Bulb struct {
-	Bright   []string
-	Location []string
-	Addr     string
-	Support  []string
-	Name     []string
-	channel  net.Conn
-}
-
 type ResultError struct {
 	Code    int
 	Message string
@@ -35,6 +26,15 @@ type Notification struct {
 	Params map[string]string
 }
 
+type Bulb struct {
+	Bright   []string
+	Location []string
+	Addr     string
+	Support  []string
+	Name     []string
+	channel  net.Conn
+}
+
 func UnmarshalBulb(resp *http.Header) (bulb *Bulb, err error) {
 	jsonData, err := json.Marshal(resp)
 	if err = json.Unmarshal(jsonData, &bulb); err != nil {
@@ -42,6 +42,10 @@ func UnmarshalBulb(resp *http.Header) (bulb *Bulb, err error) {
 	}
 	bulb.Addr = strings.TrimPrefix(string(bulb.Location[0]), "yeelight://")
 	return
+}
+
+func NewBulb(addr string) (bulb *Bulb, err error) {
+	return &Bulb{Addr: addr}, nil
 }
 
 func (b *Bulb) Connect() (err error) {
@@ -58,6 +62,22 @@ func (b *Bulb) Disconnect() (err error) {
 
 func (b *Bulb) Toggle(id int) (err error) {
 	_, err = fmt.Fprintf(b.channel, "{\"id\":%v,\"method\":\"toggle\",\"params\":[]}\r\n", id)
+	if err != nil {
+		return
+	}
+	return
+}
+
+func (b *Bulb) SetName(id int, n string) (err error) {
+	_, err = fmt.Fprintf(b.channel, "{\"id\":%v,\"method\":\"set_name\",\"params\":[\"%v\"]}\r\n", id, n)
+	if err != nil {
+		return
+	}
+	return
+}
+
+func (b *Bulb) SetBright(id int, perc uint8, msec int) (err error) {
+	_, err = fmt.Fprintf(b.channel, "{\"id\":%v,\"method\":\"set_bright\",\"params\":[%v, \"smooth\", %v]}\r\n", id, perc, msec)
 	if err != nil {
 		return
 	}

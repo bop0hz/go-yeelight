@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"os"
-	"time"
 	control "yeelight/control"
 	discovery "yeelight/discovery"
 
@@ -15,6 +14,41 @@ func handler(bulbs *control.Bulb) {
 	log.Info().Msgf("%+v", bulbs)
 }
 
+func scanBulbs(l discovery.Listener) {
+	for {
+		bulb, err := l.Scan()
+		if err != nil {
+			log.Error().Err(err)
+		}
+		if bulb != nil {
+			log.Info().Msgf("Scan found a bulb: %+v", bulb)
+		}
+	}
+}
+
+func scanEvents(b *control.Bulb) {
+	for {
+		result, err := b.ScanEvents()
+		if err != nil {
+			log.Fatal().Err(err)
+		}
+		var r *control.Result
+		if err := json.Unmarshal([]byte(result), &r); err != nil {
+			log.Fatal().Err(err)
+		}
+		if r.ID == 0 && r.Result == nil {
+			var r *control.Notification
+			json.Unmarshal([]byte(result), &r)
+			if err := json.Unmarshal([]byte(result), &r); err != nil {
+				log.Fatal().Err(err)
+			}
+			log.Printf("%+v, %T", r, r)
+		} else {
+			log.Printf("%+v, %T", r, r)
+		}
+	}
+}
+
 func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout})
 	log.Info().Msg("Starting")
@@ -24,18 +58,18 @@ func main() {
 		log.Fatal().Err(err)
 	}
 	defer l.Close()
+	go scanBulbs(l)
 
-	go func() {
-		for {
-			bulb, err := l.Scan()
-			if err != nil {
-				log.Error().Err(err)
-			}
-			if bulb != nil {
-				log.Info().Msgf("Scan found a bulb: %+v", bulb)
-			}
-		}
-	}()
+	homeBulb, _ := control.NewBulb("192.168.1.53:55443")
+	if err := homeBulb.Connect(); err != nil {
+		log.Fatal().Err(err)
+	}
+	// go scanEvents(homeBulb)
+	if err := homeBulb.SetBright(1, 1, 10000); err != nil {
+		log.Fatal().Err(err)
+	}
+	// homeBulb.Toggle(1)
+	defer homeBulb.Disconnect()
 
 	outboundAddr, err := discovery.LookupBulbs()
 	if err != nil {
@@ -49,34 +83,14 @@ func main() {
 		if err := bulb.Connect(); err != nil {
 			log.Fatal().Err(err)
 		}
-		go func() {
-			for {
-				result, err := bulb.ScanEvents()
-				if err != nil {
-					log.Fatal().Err(err)
-				}
-				var r *control.Result
-				if err := json.Unmarshal([]byte(result), &r); err != nil {
-					log.Fatal().Err(err)
-				}
-				if r.ID == 0 && r.Result == nil {
-					var r *control.Notification
-					json.Unmarshal([]byte(result), &r)
-					if err := json.Unmarshal([]byte(result), &r); err != nil {
-						log.Fatal().Err(err)
-					}
-					log.Printf("%+v, %T", r, r)
-				} else {
-					log.Printf("%+v, %T", r, r)
-				}
-			}
-		}()
-		for i := 0; i < 6; i++ {
-			if err := bulb.Toggle(i); err != nil {
-				log.Fatal().Err(err)
-			}
-			time.Sleep(1000 * time.Millisecond)
-		}
-		defer bulb.Disconnect()
 	}
+
+	// 	for i := 0; i < 6; i++ {
+	// 		if err := bulb.Toggle(i); err != nil {
+	// 			log.Fatal().Err(err)
+	// 		}
+	// 		time.Sleep(1000 * time.Millisecond)
+	// 	}
+	// 	defer bulb.Disconnect()
+	// }
 }
