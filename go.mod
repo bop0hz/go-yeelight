@@ -1,4 +1,4 @@
-module yeelight
+module github.com/bop0hz/go-yeelight
 
 go 1.15
 

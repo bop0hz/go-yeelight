@@ -6,33 +6,43 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	yeelight "yeelight/control"
+
+	"github.com/bop0hz/go-yeelight/control"
 )
 
 const (
 	mcastAddr string = "239.255.255.250"
 	mcastPort int    = 1982
+	searchMsg string = "M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1982\r\nMAN: \"ssdp:discover\"\r\nST: wifi_bulb\r\n"
 )
 
+// Listener listens for bulbs via multicast
 type Listener struct {
-	conn      *net.UDPConn
-	Addrs     []net.Addr
-	Interface string
+	conn  *net.UDPConn
+	addrs []net.Addr
+	netIf *net.Interface
+	mAddr *net.UDPAddr
 }
 
-// Listen init multicast listener
-func (l *Listener) Listen() (err error) {
+// NewListener creates and initializes Listener on network interface
+func NewListener(netInterface string) (l *Listener, err error) {
+	ifi, err := net.InterfaceByName(netInterface)
+	if err != nil {
+		return
+	}
+	addrs, err := ifi.Addrs()
+	if err != nil {
+		return
+	}
+
 	ip := net.ParseIP(mcastAddr)
-	ifi, err := net.InterfaceByName(l.Interface)
-	if err != nil {
-		return
-	}
-	l.Addrs, err = ifi.Addrs()
-	if err != nil {
-		return
-	}
 	addr := &net.UDPAddr{IP: ip, Port: mcastPort}
-	l.conn, err = net.ListenMulticastUDP("udp", ifi, addr)
+	return &Listener{netIf: ifi, mAddr: addr, addrs: addrs}, nil
+}
+
+// Listen starts listen multicast
+func (l *Listener) Listen() (err error) {
+	l.conn, err = net.ListenMulticastUDP("udp", l.netIf, l.mAddr)
 	if err != nil {
 		return
 	}
@@ -45,14 +55,14 @@ func (l *Listener) Close() (err error) {
 }
 
 // Scan scans for bulbs going online
-func (l *Listener) Scan() (bulb *yeelight.Bulb, err error) {
+func (l *Listener) Scan() (bulb *control.Bulb, err error) {
 	buffer := make([]byte, 1000)
 	n, lAddr, err := l.conn.ReadFromUDP(buffer)
 	if err != nil {
 		return
 	}
 
-	for _, addr := range l.Addrs {
+	for _, addr := range l.addrs {
 		if strings.Contains(addr.String(), lAddr.IP.String()) {
 			return
 		}
@@ -64,7 +74,7 @@ func (l *Listener) Scan() (bulb *yeelight.Bulb, err error) {
 	if err != nil {
 		return
 	}
-	return yeelight.UnmarshalBulb(&req.Header)
+	return control.UnmarshalBulb(&req.Header)
 }
 
 // LookupBulbs sends request if there are any bulbs online
@@ -80,7 +90,7 @@ func LookupBulbs() (addr *net.UDPAddr, err error) {
 	}
 	defer c.Close()
 
-	_, err = c.Write([]byte(SearchMsg))
+	_, err = c.Write([]byte(searchMsg))
 	if err != nil {
 		return
 	}
@@ -88,7 +98,7 @@ func LookupBulbs() (addr *net.UDPAddr, err error) {
 }
 
 // WaitBulbs waits bulbs responses and return found bulbs
-func WaitBulbs(addr *net.UDPAddr) (bulbs []*yeelight.Bulb, err error) {
+func WaitBulbs(addr *net.UDPAddr) (bulbs []*control.Bulb, err error) {
 	conn, err := net.ListenUDP("udp", addr)
 	if err != nil {
 		return
@@ -108,7 +118,7 @@ func WaitBulbs(addr *net.UDPAddr) (bulbs []*yeelight.Bulb, err error) {
 		return
 	}
 
-	bulb, err := yeelight.UnmarshalBulb(&resp.Header)
+	bulb, err := control.UnmarshalBulb(&resp.Header)
 	if err != nil {
 		return
 	}
