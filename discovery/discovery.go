@@ -54,7 +54,7 @@ func (l *Listener) Close() (err error) {
 	return l.conn.Close()
 }
 
-// Scan scans for bulbs going online
+// Scan scans for bulbs going online, returns nil if catches own discovery request
 func (l *Listener) Scan() (bulb *control.Bulb, err error) {
 	buffer := make([]byte, 1000)
 	n, lAddr, err := l.conn.ReadFromUDP(buffer)
