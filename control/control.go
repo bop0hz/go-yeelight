@@ -94,7 +94,7 @@ func (b *Bulb) SetBright(id int, perc uint8, msec int) (err error) {
 	return
 }
 
-// ScanEvents scans events from the bulb
+// ScanEvents scans events from the bulb, returns result or notification
 func (b *Bulb) ScanEvents() (event []byte, err error) {
 	buffer := make([]byte, 1000)
 	n, err := b.channel.Read(buffer)
